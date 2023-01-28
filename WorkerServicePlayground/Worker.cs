@@ -2,6 +2,13 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace WorkerServicePlayground;
 
+
+/// <summary>
+/// this guy starts observing directories and in case of changes
+/// in some .csv files in uploads them to web
+/// after changing config it must be restarted
+/// started tasks may still finish after app is stopped
+/// </summary>
 class WatchYourProducts : BackgroundService
 {
     readonly ILogger<WatchYourProducts> log;
@@ -75,13 +82,13 @@ class WatchYourProducts : BackgroundService
 
     void SendToWeb(object _, FileSystemEventArgs fileEvent) =>
         Task.Factory.StartNew(() => {
+            if()
             try {
                 var content = string.Empty;
                 using(var fileAccess = new StreamReader(fileEvent.FullPath)) {
                     content = fileAccess.ReadToEnd();
                 }
-
-                comm.UploadNewData(content, inCaseOfProblems: () => {
+                comm.UploadNewCsv(content, inCaseOfProblems: () => {
                     log.LogError($"Could not upload file: {fileEvent.FullPath}");
                 });
             } catch(Exception error) {

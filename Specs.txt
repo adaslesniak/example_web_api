@@ -1,0 +1,24 @@
+Celem będzie stworzenie prostej aplikacji do importu produktów z plików CSV.
+ 
+W jej skład będą wchodziły:
+A - baza danych (MySQL/MSSQL),
+B - usługa Windowsowa,
+C - WebApi (.NET Core).
+
+Aplikacja frontendowa nie jest  wymagana, 
+	ale wówczas dobrze byłoby dostarczyć nam przykładowe 
+	requesty np. w formacie Postmanowym.
+
+Założenia biznesowe:
+1. Jako użytkownik mogę pobrać listę produktów (nazwa, opis, waga, rozmiar, cena)
+2. Jako użytkownik chcę mieć możliwość uploadu pliku CSV listą produktów.
+3. Jako usługa windowsowa chcę obserwować folder/foldery w których znajdują się pliki CSV 
+	i jeżeli został dodany nowy plik to przetworzyć go (utworzyć na jego podstawie produkty).
+4. Jako usługa windowsowa chcę logować do pliku wszystkie istotne akcje 
+	(informacje o udanym przetworzeniu pliku CSV oraz komunikaty o błędach).
+
+1 - OK
+2 - lack of errors
+A - missing
+B - missing
+C - not handling errors

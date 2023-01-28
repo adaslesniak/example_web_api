@@ -2,6 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.OpenApi;
 using Mysqlx.Prepare;
+using Microsoft.AspNetCore.Mvc;
+using Org.BouncyCastle.Asn1.Ocsp;
+
 
 var app = PrepareApp();
 MapEndpoints();
@@ -28,7 +31,7 @@ void MapEndpoints() {
     root.MapPost("", PostProduct);
     root.MapPut("", PutProduct);
     root.MapGet("/csv", GetProductsCsv);
-    root.MapPost("/csv", PostProductsCsv);
+    root.MapPost("/csv", PostProductsCsv).Accepts<IFormFile>("text/plain");
 }
 
 async Task<string> GetProductsCsv(ProductDb db) =>
@@ -37,13 +40,16 @@ async Task<string> GetProductsCsv(ProductDb db) =>
 async Task<IResult> GetProducts (ProductDb db) =>
     TypedResults.Ok(await db.Products.ToListAsync());
 
-async Task<IResult> PostProductsCsv(string csvData, ProductDb db) {
-    if(ProductsCsv.Parse(csvData, out var updatedProducts) is false) {
-        return TypedResults.BadRequest(); //could return explanaition what went wrong
+async Task<IResult> PostProductsCsv(HttpRequest request, ProductDb db) {
+    using(var reader = new StreamReader(request.Body, System.Text.Encoding.UTF8)) {
+        var csvData = await reader.ReadToEndAsync();
+        if(ProductsCsv.Parse(csvData, out var updatedProducts) is false) {
+            return TypedResults.BadRequest(); //could return explanaition what went wrong
+        }
+        await db.AddRangeAsync(updatedProducts.ToList());
+        await db.SaveChangesAsync();
+        return TypedResults.Ok(); //could return some errors, ok may mean not every row was parsed correctly
     }
-    await db.AddRangeAsync(updatedProducts.ToList());
-    await db.SaveChangesAsync();
-    return TypedResults.Ok(); //could return some errors, ok may mean not every row was parsed correctly
 }
 
 async Task<IResult> PostProduct(Product updatedItem, ProductDb db) =>

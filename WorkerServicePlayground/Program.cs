@@ -4,7 +4,7 @@ using WorkerServicePlayground;
 
 using IHost host = Host.CreateDefaultBuilder(args)
     .UseWindowsService(options => {
-        options.ServiceName = "Product Watch";
+        options.ServiceName = "Watch Your Products";
     })
     .ConfigureServices(services => {
         LoggerProviderOptions.RegisterProviderOptions<EventLogSettings, EventLogLoggerProvider>(services);

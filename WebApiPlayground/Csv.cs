@@ -81,7 +81,6 @@ static class ProductsCsv
                     PricePer100 = (int)(ParseValue<double>(values[4]) * 100)
                 };
                 return another;
-                
             } catch(Exception error) {
                 //some log or error outed in response would be appropriate
                 return null;

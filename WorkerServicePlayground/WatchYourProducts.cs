@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace WorkerServicePlayground;
@@ -13,11 +14,10 @@ class WatchYourProducts : BackgroundService
 {
     readonly ILogger<WatchYourProducts> log;
     readonly WebClient comm;
+    readonly List<FileSystemWatcher> activeObservers = new();
 
-    internal WatchYourProducts(WebClient withComm, ILogger<WatchYourProducts> withLog) => 
+    public WatchYourProducts(WebClient withComm, ILogger<WatchYourProducts> withLog) =>
         (comm, log) = (withComm, withLog);
-
-    List<FileSystemWatcher> activeObservers = new();
 
     //TODO this must be configurable by user
     string[] ConfiguredPaths() => new[] {
@@ -27,8 +27,8 @@ class WatchYourProducts : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
         var exitState = 0;
         try { //have no idea why this try catch is required but it's recomended by MS and I assume they know their product
-            await Task.Run(() => {
-                //TODO: as of now reconfig requires restart, it should watch configuration file and do it on the go
+            await Task.Run(async () => {
+                //as of now reconfig requires restart, it could watch configuration file and do it on the go
                 ReloadObservers();
                 stoppingToken.WaitHandle.WaitOne();
             });
@@ -67,12 +67,9 @@ class WatchYourProducts : BackgroundService
     }
 
     FileSystemWatcher StartWatch(string folderPath) {
-        using var watcher = new FileSystemWatcher(folderPath);
-        watcher.NotifyFilter = NotifyFilters.CreationTime
-                             | NotifyFilters.LastWrite
-                             | NotifyFilters.Size;
-        watcher.Changed += SendToWeb;
-        watcher.Created += SendToWeb;
+        var watcher = new FileSystemWatcher(folderPath);
+        watcher.NotifyFilter = NotifyFilters.LastWrite;
+        watcher.Changed += Upload; //this is called twice when copying file into destination
         watcher.Error += LogError;
         watcher.Filter = "*.csv";
         watcher.IncludeSubdirectories = true;
@@ -80,21 +77,48 @@ class WatchYourProducts : BackgroundService
         return watcher;
     }
 
-    void SendToWeb(object _, FileSystemEventArgs fileEvent) =>
+    //TODO: it shouldn't be direct... we should give some time
+    //(keep some queue, when was last modified and then if in this queue is that it was over 10 seconds, upload newest version)
+    //and it's called twice
+    void Upload(object _, FileSystemEventArgs fileEvent) =>
         Task.Factory.StartNew(() => {
-            if()
-            try {
-                var content = string.Empty;
-                using(var fileAccess = new StreamReader(fileEvent.FullPath)) {
-                    content = fileAccess.ReadToEnd();
-                }
-                comm.UploadNewCsv(content, inCaseOfProblems: () => {
-                    log.LogError($"Could not upload file: {fileEvent.FullPath}");
-                });
-            } catch(Exception error) {
-                log.LogError((EventId)0, error, "Can't access file");
+            if(false == TryReadFile(fileEvent.FullPath, out var content)) {
+                log.LogError($"filed to read file {fileEvent.FullPath}");
+                return;
             }
+            comm.UploadNewCsv(content, didSucceed => {
+                if(didSucceed) {
+                    log.LogInformation($"successfully uploaded file: {fileEvent.FullPath}");
+                }
+                else {
+                    log.LogError($"Could not upload file: {fileEvent.FullPath}");
+                }
+            });
         });
+
+    //This can be very long as we wait for user to close the file, he can have 
+    //it opened (and therefore locked access to it) for hours or days
+    bool TryReadFile(string path, out string content) {
+        var maxTime = TimeSpan.FromHours(72);
+        var waitingTime = TimeSpan.Zero;
+        while(waitingTime < maxTime) {
+            StreamReader fileAccess = null;
+            if(false == File.Exists(path)) {
+                content = string.Empty;
+                return false;
+            }
+            try {
+                fileAccess = File.OpenText(path);
+                content = fileAccess.ReadToEnd();
+                return true;
+            } catch { }
+            finally {
+                fileAccess?.Close();
+            }
+        }
+        content = string.Empty;
+        return false;
+    }
 
     void LogError(object _, ErrorEventArgs errorEvent) {
         if(errorEvent.GetException() is not Exception error) {

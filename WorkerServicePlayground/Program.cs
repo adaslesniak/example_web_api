@@ -8,6 +8,7 @@ using IHost host = Host.CreateDefaultBuilder(args)
     })
     .ConfigureServices(services => {
         LoggerProviderOptions.RegisterProviderOptions<EventLogSettings, EventLogLoggerProvider>(services);
+        services.AddSingleton(new LaunchConfig(args));
         services.AddSingleton<WebClient>();
         services.AddHostedService<WatchYourProducts>();
     })

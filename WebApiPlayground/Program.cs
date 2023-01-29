@@ -1,9 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.OpenApi;
-using Mysqlx.Prepare;
-using Microsoft.AspNetCore.Mvc;
-using Org.BouncyCastle.Asn1.Ocsp;
 
 
 var app = PrepareApp();
@@ -33,7 +28,7 @@ void MapEndpoints() {
     root.MapPost("", Api.PostProduct);
     root.MapPut("", Api.PutProduct);
     root.MapGet("/csv", Api.GetProductsCsv);
-    root.MapPost("/csv", Api.PostProductsCsv).Accepts<IFormFile>("text/plain");
+    root.MapPut("/csv", Api.PutProductsCsv).Accepts<IFormFile>("text/plain");
 }
 
 

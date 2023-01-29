@@ -14,15 +14,13 @@ class WatchYourProducts : BackgroundService
 {
     readonly ILogger<WatchYourProducts> log;
     readonly WebClient comm;
+    readonly LaunchConfig config;
     readonly List<FileSystemWatcher> activeObservers = new();
+    
 
-    public WatchYourProducts(WebClient withComm, ILogger<WatchYourProducts> withLog) =>
-        (comm, log) = (withComm, withLog);
+    public WatchYourProducts(WebClient withComm, LaunchConfig withConfig, ILogger<WatchYourProducts> withLog) =>
+        (comm, config, log) = (withComm, withConfig, withLog);
 
-    //TODO this must be configurable by user
-    string[] ConfiguredPaths() => new[] {
-        @"C:\projects\Courses\web-api-playground\test_for_watch"
-    };
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
         var exitState = 0;
@@ -38,24 +36,26 @@ class WatchYourProducts : BackgroundService
             exitState = 1;
         }
         finally {
-
-            foreach(var existing in new List<FileSystemWatcher>(activeObservers)) {
-                KillObserver(existing);
-            }
+            KillObservers(activeObservers);
             Environment.Exit(exitState);
         }
     }
 
     void ReloadObservers() {
-        var pathsToObserve = ConfiguredPaths();
-        foreach(var path in pathsToObserve) {
+        foreach(var path in config.FoldersToObserve) {
             if(activeObservers.FirstOrDefault(observer => observer.Path == path) is not null) {
                 continue;
             }
             activeObservers.Add(StartWatch(path));
+            log.LogInformation($"Started observing products under: {path}");
         }
-        var obsolete = activeObservers.Where(observer => false == pathsToObserve.Contains(observer.Path));
-        foreach(var outdated in obsolete) {
+        KillObservers(activeObservers.Where(observer => 
+            false == config.FoldersToObserve.Contains(observer.Path)));
+    }
+
+    void KillObservers(IEnumerable<FileSystemWatcher> junk) {
+        var copy = new List<FileSystemWatcher>(junk); //copy to avoid probles with iterating list that was changed
+        foreach(var outdated in copy) {
             KillObserver(outdated);
         }
     }
@@ -77,7 +77,7 @@ class WatchYourProducts : BackgroundService
         return watcher;
     }
 
-    //TODO: it shouldn't be direct... we should give some time
+    //TODO: it shouldn't be direct upload after every change... should wait some time for user to finish
     //(keep some queue, when was last modified and then if in this queue is that it was over 10 seconds, upload newest version)
     //and it's called twice
     void Upload(object _, FileSystemEventArgs fileEvent) =>
@@ -93,7 +93,7 @@ class WatchYourProducts : BackgroundService
                 else {
                     log.LogError($"Could not upload file: {fileEvent.FullPath}");
                 }
-            });
+            }).Wait();
         });
 
     //This can be very long as we wait for user to close the file, he can have 

@@ -26,7 +26,8 @@ static class ProductsCsv
             $"\"{value ?? string.Empty}\"" + (isLast ? "\r\n" : ", ");
     }
 
-    internal static bool Parse(string csv, out List<Product> result) {
+    internal static bool Parse(string csv, out List<Product> result, out string errorsCsv) {
+        errorsCsv = string.Empty; //TODO: that is not implemented
         result = new List<Product>();
         var rows = csv.Split("\n\r".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
         foreach(var line in rows) {

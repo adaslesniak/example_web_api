@@ -1,11 +1,12 @@
-﻿{
+{
   "profiles": {
     "WorkerServicePlayground": {
       "commandName": "Project",
-      "dotnetRunMessages": true,
+      "commandLineArgs": "C:\\projects\\Courses\\web-api-playground\\test_for_watch",
       "environmentVariables": {
         "DOTNET_ENVIRONMENT": "Development"
-      }
+      },
+      "dotnetRunMessages": true
     }
   }
 }

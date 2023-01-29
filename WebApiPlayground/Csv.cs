@@ -1,13 +1,14 @@
 ﻿
 using System.Text;
 using System.Text.RegularExpressions;
+namespace WebApiPlayground;
 
+
+//it's probably wrong approach, should use some of the shelf library for parsing CSVs
 static class ProductsCsv
 {
     const int nrOfColumns = 5;
 
-    //there is this nugget: https://github.com/jitbit/CsvExport but using it won't save much code and it's much less performant...
-    //this I can easily optimize to work in streaming way - to write each line into file or send it over tcp so not using lot of memory
     internal static string Serialize(IEnumerable<Product> content) {
         var writer =new StringBuilder();
         foreach(var item in content)
@@ -27,7 +28,7 @@ static class ProductsCsv
     }
 
     internal static bool Parse(string csv, out List<Product> result, out string errorsCsv) {
-        errorsCsv = string.Empty; //TODO: that is not implemented
+        var errors = new List<string>();
         result = new List<Product>();
         var rows = csv.Split("\n\r".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
         foreach(var line in rows) {
@@ -35,6 +36,7 @@ static class ProductsCsv
                 result.AddRange(products);
             }
         }
+        errorsCsv = SerializeErrors(errors);
         return result.Count() > 0;
 
         bool ParseItem(string dataLine, out List<Product> result) {
@@ -45,13 +47,22 @@ static class ProductsCsv
             //}
             for(int i = 0; i < csvValues.Length; i += nrOfColumns) { //because problems with line breaks
                 var productValues = csvValues.Skip(i).Take(nrOfColumns).ToArray();
-                var parsed = Parse(productValues);
+                var parsed = Parse(productValues, out var error);
                 if(parsed is null) {
+                    errors.Add(error!); 
                     continue;
                 }
                 result.Add(parsed);
             }
             return result.Count > 0;
+        }
+
+        string SerializeErrors(List<string> errors) {
+            var errorsCsv = "";
+            foreach(var issue in errors) {
+                errorsCsv += $"\"{issue}\" \r\n";
+            }
+            return errorsCsv;
         }
 
         string[] SplitValues(string rowData) {
@@ -65,15 +76,14 @@ static class ProductsCsv
             : patternMatch.Groups[1].Value).Trim().Replace("\"", "");
 
 
-        Product Parse(string[] values) {
+        Product? Parse(string[] values, out string? errorInfo) {
             try {
                 var dimensionsMagic = new Regex(@"");
                 var dimensions = values[3].Split("x-".ToCharArray()); 
                 if(dimensions.Length != 3) {
                     dimensions = null;
                 }
-                var another = new Product() {
-                    Name = ParseValue<string>(values[0]),
+                var another = new Product(ParseValue<string>(values[0])) {
                     Description = ParseValue<string>(values[1], string.Empty),
                     WeightInKg = ParseValue<float>(values[2], 0f),
                     WidthInCm = ParseValue<int>(dimensions?[0], 0),
@@ -81,27 +91,30 @@ static class ProductsCsv
                     DepthInCm = ParseValue<int>(dimensions?[2], 0),
                     PricePer100 = (int)(ParseValue<double>(values[4]) * 100)
                 };
+                errorInfo = null;
                 return another;
             } catch(Exception error) {
-                //some log or error outed in response would be appropriate
+                errorInfo = error.Message;
                 return null;
             }
         }
 
-        T ParseValue<T>(string encoded, object defaultValue = null) {
+        //must by try catched - may throw
+        //TODO: make handling of nulls cleaner
+        T ParseValue<T>(string? encoded, object? defaultValue = null) {
             encoded = encoded?.Trim().Replace("\"", "");
             if(IsMaaningNull()) {
-                return (T)defaultValue;
+                return (T)defaultValue!;
             }
-            object x = Type.GetTypeCode(typeof(T)) switch {
+            object result = Type.GetTypeCode(typeof(T)) switch {
                 TypeCode.Int32
-                or TypeCode.Int64 => int.Parse(encoded),
-                TypeCode.String => encoded,
-                TypeCode.Double => double.Parse(encoded),
-                TypeCode.Single => float.Parse(encoded),
+                or TypeCode.Int64 => int.Parse(encoded!),
+                TypeCode.String => encoded!,
+                TypeCode.Double => double.Parse(encoded!),
+                TypeCode.Single => float.Parse(encoded!),
                 _ => throw new NotSupportedException()
             };
-            return (T)x;
+            return (T)result;
 
             bool IsMaaningNull() =>
                 string.IsNullOrWhiteSpace(encoded) 

@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+namespace WebApiPlayground;
 
 public static class Api
 {

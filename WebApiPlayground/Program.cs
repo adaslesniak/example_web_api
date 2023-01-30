@@ -30,7 +30,7 @@ void MapEndpoints() {
     root.MapPost("", Api.PostProduct);
     root.MapPut("", Api.PutProduct);
     root.MapGet("/csv", Api.GetProductsCsv);
-    root.MapPut("/csv", Api.PutProductsCsv).Accepts<IFormFile>("text/plain");
+    root.MapPut("/csv", Api.PutProductsCsv).Accepts<IFormFile>("text/csv");
 }
 
 

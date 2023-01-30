@@ -10,7 +10,7 @@ using IHost host = Host.CreateDefaultBuilder(args)
         LoggerProviderOptions.RegisterProviderOptions<EventLogSettings, EventLogLoggerProvider>(services);
         services.AddSingleton(new LaunchConfig(args));
         services.AddSingleton<WebClient>();
-        services.AddHostedService<WatchYourProducts>();
+        services.AddHostedService<FileWatch>();
     })
     .ConfigureLogging((context, logging) => {
         logging.AddConfiguration(context.Configuration.GetSection("Logging"));
